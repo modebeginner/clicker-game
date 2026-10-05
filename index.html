@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Клацалка</title>
+<style>
+:root{--bg:#eef3f7;--ink:#14212b;--mute:#5b6b78;--panel:#fff;--line:#cfdae3;--target:#e8452c;--ring:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a22;--ink:#e8f0f5;--mute:#8fa3b2;--panel:#17252f;--line:#2a3b47;--target:#ff6a4d;--ring:#17252f}}
+:root[data-theme="dark"]{--bg:#0f1a22;--ink:#e8f0f5;--mute:#8fa3b2;--panel:#17252f;--line:#2a3b47;--target:#ff6a4d;--ring:#17252f}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;box-sizing:border-box}
+h1{margin:0;font-size:1.4rem}
+.stats{display:flex;gap:10px;width:100%;max-width:640px}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.stat span{display:block;font-size:.8rem;color:var(--mute)}
+.stat b{font-size:1.6rem;font-variant-numeric:tabular-nums}
+#field{position:relative;flex:1;width:100%;max-width:640px;min-height:260px;background:var(--panel);border:2px solid var(--line);border-radius:14px;overflow:hidden;touch-action:manipulation}
+#target{position:absolute;width:64px;height:64px;border-radius:50%;border:0;padding:0;cursor:pointer;display:none;
+background:radial-gradient(circle,var(--target) 0 22%,var(--ring) 22% 40%,var(--target) 40% 62%,var(--ring) 62% 80%,var(--target) 80%)}
+#target:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;line-height:1.5;pointer-events:none}
+button.go{font:inherit;padding:10px 22px;border-radius:10px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+.hint{color:var(--mute);font-size:.85rem;margin:0}
+</style>
+</head>
+<body>
+<h1>Клацалка</h1>
+<div class="stats">
+  <div class="stat"><span>Бали</span><b id="score">0</b></div>
+  <div class="stat"><span>Час</span><b id="time">30</b></div>
+  <div class="stat"><span>Рекорд</span><b id="best">0</b></div>
+</div>
+<div id="field">
+  <button id="target" aria-label="Мішень"></button>
+  <div id="msg">Натисни пробіл, щоб почати.<br>Клацай по мішені — кожне влучання дає +1 бал.</div>
+</div>
+<button class="go" id="toggle">Старт</button>
+<p class="hint">Пробіл — старт / стоп</p>
+<script>
+const DURATION = 30;
+const $ = id => document.getElementById(id);
+const field = $('field'), target = $('target'), msg = $('msg');
+let score = 0, left = DURATION, timer = null, running = false, best = 0;
+
+try { best = parseInt(localStorage.getItem('clicker-best') || '0', 10) || 0; } catch (e) {}
+$('best').textContent = best;
+
+function moveTarget() {
+  const size = target.offsetWidth;
+  const x = Math.random() * (field.clientWidth - size);
+  const y = Math.random() * (field.clientHeight - size);
+  target.style.left = x + 'px';
+  target.style.top = y + 'px';
+}
+
+function finish(reason) {
+  running = false;
+  clearInterval(timer);
+  target.style.display = 'none';
+  let text = reason === 'stop' ? 'Зупинено' : 'Час вийшов!';
+  text += '<br>Результат: <b>' + score + '</b>';
+  if (score > best) {
+    best = score;
+    $('best').textContent = best;
+    try { localStorage.setItem('clicker-best', String(best)); } catch (e) {}
+    text += '<br>Новий рекорд!';
+  }
+  msg.innerHTML = text + '<br>Пробіл — зіграти ще раз.';
+  msg.style.display = 'flex';
+  $('toggle').textContent = 'Старт';
+}
+
+function start() {
+  score = 0; left = DURATION; running = true;
+  $('score').textContent = score;
+  $('time').textContent = left;
+  msg.style.display = 'none';
+  target.style.display = 'block';
+  moveTarget();
+  $('toggle').textContent = 'Стоп';
+  clearInterval(timer);
+  timer = setInterval(() => {
+    left--;
+    $('time').textContent = left;
+    if (left <= 0) finish('end');
+  }, 1000);
+}
+
+function toggle() { running ? finish('stop') : start(); }
+
+target.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!running) return;
+  score++;
+  $('score').textContent = score;
+  moveTarget();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+});
+document.addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); });
+$('toggle').addEventListener('click', e => { e.currentTarget.blur(); toggle(); });
+</script>
+</body>
+</html>
